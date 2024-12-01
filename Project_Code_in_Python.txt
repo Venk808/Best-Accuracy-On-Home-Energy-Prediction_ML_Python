@@ -1,0 +1,1164 @@
+ # Import Libraries
+import numpy as np
+import pandas as pd
+from datetime import datetime as dt
+# Import Data Visualisation Libraries
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly as pl
+import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+from pandas.plotting import scatter_matrix
+%matplotlib inline
+# Set the plot style and display options
+plt.style.use('ggplot')
+sns.set()
+# To display all the columns in Dataframe
+pd.set_option('display.max_columns', None)
+# Import Library to visualise missing data
+import missingno as mno
+# Import and Ignore warnings for better code readability,
+import warnings
+warnings.filterwarnings('ignore')
+#importing the data set
+#upload your path of dataset
+data_raw = pd.read_csv('/content/KAG_energydata_complete.csv')
+#creating a copy of data set
+data = data_raw.copy()
+# Dataset First Look
+data.head()
+# Dataset Rows & Columns count
+num_rows, num_cols = data.shape
+ 
+print("Number of rows:", num_rows)
+print("Number of columns:", num_cols)
+# Dataset Info
+data.info()
+# Assuming your date column is named "date_column"
+data['date'] = pd.to_datetime(data['date'])
+# Setting date as the index:
+data.set_index('date', inplace=True)
+# Dataset Duplicate Value Count assinged a dataframe name 'df'
+df = data[data.duplicated()]
+# Dataset Columns
+data.columns
+# Dataset Describe
+data.describe(include='all')
+# Checking Unique Values count for each variable.
+for i in data.columns.tolist():
+  print("The unique values in",i, "is",data[i].nunique(),".")
+# Round the unique values to two decimal places
+rounded_unique_values = data.apply(lambda x: set(round(val, 2) for val in x))
+ 
+# Print the unique values for each feature
+for feature, unique in rounded_unique_values.items():
+    print(f'{feature}: {unique}')# Separating columns:
+temperature_column = [i for i in data.columns if "T" in i]
+humidity_column = [i for i in data.columns if "RH" in i]
+other = [i for i in data.columns if ("T" not in i)&("RH" not in i)]
+#close look on temprature column
+data[temperature_column].describe(include='all')
+#close look on temprature column
+data[temperature_column].describe(include='all')
+data[other].describe()
+# Create a dictionary to map current column names to new column names
+column_mapping = {'T1': 'KITCHEN_TEMP',
+    'RH_1': 'KITCHEN_HUM',
+    'T2': 'LIVING_TEMP',
+    'RH_2' :'LIVING_HUM',
+    'T3': 'BEDROOM_TEMP',
+    'RH_3':'BEDROOM_HUM',
+    'T4' : 'OFFICE_TEMP',
+    'RH_4' : 'OFFICE_HUM',
+    'T5' : 'BATHROOM_TEMP',
+    'RH_5': 'BATHROOM_HUM',
+    'T6':'OUTSIDE_TEMP_build',
+    'RH_6': 'OUTSIDE_HUM_build',
+    'T7': 'IRONING_ROOM_TEMP',
+    'RH_7' : 'IRONING_ROOM_HUM',
+    'T8' :'TEEN_ROOM_2_TEMP',
+    'RH_8' : 'TEEN_ROOM_HUM',
+    'T9': 'PARENTS_ROOM_TEMP',
+    'RH_9': 'PARENTS_ROOM_HUM',
+    'T_out' :'OUTSIDE_TEMP_wstn',
+    'RH_out' :'OUTSIDE_HUM_wstn'}
+ 
+# Rename the columns using the mapping
+data.rename(columns=column_mapping, inplace=True)
+data.head()
+#creating new features
+data['month'] = data.index.month
+data['weekday'] = data.index.weekday
+data['hour'] = data.index.hour
+#data['week'] = data.index.week
+data['day'] = data.index.day
+data['day_of_week'] = data.index.dayofweek
+data.head(2)
+# Counting values of the "lights" column:
+data['lights'].value_counts(normalize=True)
+#reorder the data for clear vision
+desired_order = ['KITCHEN_TEMP','LIVING_TEMP','BEDROOM_TEMP','OFFICE_TEMP','BATHROOM_TEMP','OUTSIDE_TEMP_build','IRONING_ROOM_TEMP','TEEN_ROOM_2_TEMP','PARENTS_ROOM_TEMP','OUTSIDE_TEMP_wstn',
+                 'KITCHEN_HUM','LIVING_HUM','BEDROOM_HUM','OFFICE_HUM','BATHROOM_HUM','OUTSIDE_HUM_build','IRONING_ROOM_HUM','TEEN_ROOM_HUM','PARENTS_ROOM_HUM','OUTSIDE_HUM_wstn',
+                 "Tdewpoint","Press_mm_hg","Windspeed","Visibility","rv1", "rv2",'month','weekday','hour','week','day','day_of_week',"Appliances"]
+#assinging new_data as new name of dataframe
+data = data.reindex(columns=desired_order)
+data.tail(2)
+ 
+# Create a pivot table to aggregate the daily energy consumption
+daily_energy = data.pivot_table(values='Appliances', index='day', columns='month', aggfunc = 'mean')
+ 
+# Create a heatmap using the pivot table
+plt.figure(figsize=(10, 5))
+plt.title('Daily Energy Consumption')
+plt.xlabel('Month')
+plt.ylabel('Day')
+plt.imshow(daily_energy, cmap='YlGnBu', aspect='auto')
+plt.colorbar(label='Energy Consumption')
+plt.xticks(range(0,5), ['Jan', 'Feb', 'Mar', 'Apr', 'May'])
+plt.yticks(range(1, 32))
+plt.show()
+ 
+# Map the day of the week values to their respective names
+day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+data['day_of_week'] = data['day_of_week'].map(lambda x: day_names[x])
+ 
+# Create a box plot or violin plot to compare energy consumption across different days of the week
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='day_of_week', y='Appliances', data=data, order=day_names)  # or sns.violinplot()
+plt.title('Appliance Energy Consumption by Day of the Week')
+plt.xlabel('Day of the Week')
+plt.ylabel('Energy Consumption')
+# Create a line plot to show the trend of energy consumption over time
+import plotly.express as px
+ 
+# Assuming you have a DataFrame 'data' with a datetime index
+fig = px.line(data, x=data.index, y='Appliances', title='Energy Consumption of Appliances Over Time')
+fig.update_xaxes(title_text='Date', tickangle=-45)
+fig.update_yaxes(title_text='Energy Consumption')
+ 
+# Show the Plotly figure
+fig.show()
+# Dropping the lights column:
+data.drop(columns='day_of_week', inplace=True)
+# Chart - 4 visualization code
+# Examining the outlier in the dataset
+# Assuming 'data' is your DataFrame
+num_columns = len(data.columns)
+fig, axes = plt.subplots(nrows=num_columns, figsize=(8, num_columns*6))
+ 
+for i, column in enumerate(data.columns):
+    # Exclude 'day_of_week' from the visualization
+    if column != 'day_of_week':
+        data.boxplot(column=column, ax=axes[i])
+        axes[i].set_title(f'Box Plot for {column}')
+        axes[i].set_xlabel('Column')
+        axes[i].set_ylabel('Values')
+ 
+plt.tight_layout()
+plt.show()
+# Chart - 5 visualization code
+#close look on four columns
+fig_sub = make_subplots(rows=1, cols=4, shared_yaxes=False)
+ 
+fig_sub.add_trace(go.Box(y=data['Appliances'].values,name='Appliances'),row=1, col=1)
+fig_sub.add_trace(go.Box(y=data['Windspeed'].values,name='Windspeed'),row=1, col=2)
+fig_sub.add_trace(go.Box(y=data['Visibility'].values,name='Visibility'),row=1, col=3)
+fig_sub.add_trace(go.Box(y=data['Press_mm_hg'].values,name='Press_mm_hg'),row=1, col=4)
+ 
+fig_sub.show()
+# Chart - 6 visualization code
+import matplotlib.pyplot as plt
+ 
+# Assuming 'data' is your DataFrame with the energy consumption data
+# You can group the data by hour and calculate the mean energy consumption for each hour
+hourly_energy = data.groupby('hour')['Appliances'].mean()
+ 
+# Create a line chart to visualize the hourly energy consumption patterns
+plt.figure(figsize=(12, 6))
+plt.plot(hourly_energy.index, hourly_energy.values, marker='o', linestyle='-')
+plt.title('Hourly Energy Consumption Patterns')
+plt.xlabel('Hour of the Day')
+plt.ylabel('Energy Consumption (mean)')
+plt.xticks(range(24))
+plt.grid(True)
+plt.show()
+# Chart - 7 visualization code
+import seaborn as sns
+import matplotlib.pyplot as plt
+ 
+# Assuming 'data' is your DataFrame with the relevant columns (e.g., 'KITCHEN_TEMP', 'OUTSIDE_TEMP_build', and 'Appliances')
+# You can create a scatter plot with a regression line for indoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='KITCHEN_TEMP', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Indoor Temperature vs. Energy Consumption')
+plt.xlabel('Indoor Temperature (KITCHEN_TEMP)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can create a scatter plot with a regression line for indoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='LIVING_TEMP', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Indoor Temperature vs. Energy Consumption')
+plt.xlabel('Indoor Temperature (KITCHEN_TEMP)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can create a scatter plot with a regression line for indoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='BEDROOM_TEMP', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Indoor Temperature vs. Energy Consumption')
+plt.xlabel('Indoor Temperature (KITCHEN_TEMP)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can create a scatter plot with a regression line for indoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='OFFICE_TEMP', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Indoor Temperature vs. Energy Consumption')
+plt.xlabel('Indoor Temperature (KITCHEN_TEMP)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can create a scatter plot with a regression line for indoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='BATHROOM_TEMP', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Indoor Temperature vs. Energy Consumption')
+plt.xlabel('Indoor Temperature (KITCHEN_TEMP)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can create a scatter plot with a regression line for outdoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='OUTSIDE_TEMP_build', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Indoor Temperature vs. Energy Consumption')
+plt.xlabel('Indoor Temperature (KITCHEN_TEMP)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can also create a similar scatter plot and regression line for indoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='IRONING_ROOM_TEMP', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Outdoor Temperature vs. Energy Consumption')
+plt.xlabel('Outdoor Temperature (OUTSIDE_TEMP_build)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can also create a similar scatter plot and regression line for indoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='TEEN_ROOM_2_TEMP', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Outdoor Temperature vs. Energy Consumption')
+plt.xlabel('Outdoor Temperature (OUTSIDE_TEMP_build)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can also create a similar scatter plot and regression line for indoor temperature vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='PARENTS_ROOM_TEMP', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Outdoor Temperature vs. Energy Consumption')
+plt.xlabel('Outdoor Temperature (OUTSIDE_TEMP_build)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+# You can also create a similar scatter plot and regression line for outdoor temperature data from weather station vs. energy consumption
+plt.figure(figsize=(10, 6))
+sns.regplot(x='OUTSIDE_TEMP_wstn', y='Appliances', data=data, scatter_kws={'alpha':0.5}, line_kws={'color':'red'})
+plt.title('Scatter Plot and Regression Line for Outdoor Temperature vs. Energy Consumption')
+plt.xlabel('Outdoor Temperature (OUTSIDE_TEMP_build)')
+plt.ylabel('Energy Consumption (Appliances)')
+plt.grid(True)
+ 
+plt.show()
+# Chart - 9 visualization code
+import matplotlib.pyplot as plt
+ 
+# Assuming 'data' is your DataFrame with relevant columns (e.g., 'weekday' and 'Appliances')
+# You can create a line chart to compare energy consumption on weekdays vs. weekends
+ 
+plt.figure(figsize=(10, 6))
+ 
+# Group the data by 'weekday' and calculate the mean energy consumption for weekdays and weekends
+weekday_energy = data[data['weekday'] < 5].groupby('hour')['Appliances'].mean()
+weekend_energy = data[data['weekday'] >= 5].groupby('hour')['Appliances'].mean()
+ 
+# Plot energy consumption for weekdays and weekends
+plt.plot(weekday_energy.index, weekday_energy.values, label='Weekdays', marker='o')
+plt.plot(weekend_energy.index, weekend_energy.values, label='Weekends', marker='o')
+ 
+plt.title('Energy Consumption on Weekdays vs. Weekends')
+plt.xlabel('Hour of the Day')
+plt.ylabel('Mean Energy Consumption')
+plt.xticks(range(24))
+plt.grid(True)
+plt.legend()
+ 
+plt.show()
+# Visualizing distributions using Histograms:
+data.hist(figsize=(17, 20), grid=True);
+# Correlation Heatmap visualization code
+correlation_matrix = data.corr()
+plt.figure(figsize=(21, 18))
+sns.heatmap(correlation_matrix, annot=True, cmap="RdYlGn")
+plt.title("Correlation Matrix Heatmap")
+plt.show()
+# Get the list of column names in your dataset
+columns = data.columns
+ 
+# Determine the number of rows and columns for subplots
+num_rows = len(columns)
+num_cols = 1
+ 
+# Create subplots with specified number of rows and columns
+fig, axes = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(10, 80))
+ 
+# Iterate over each column (excluding "Appliances") and create pair plot
+for i, column in enumerate(columns):
+    #if column != "Appliances":
+        sns.scatterplot(data=data, x="Appliances", y=column, ax=axes[i])
+        axes[i].set_xlabel("Appliances")
+        axes[i].set_ylabel(column)
+ 
+# Adjust the spacing between subplots
+plt.tight_layout()
+ 
+# Show the plot
+plt.show()
+data.columns
+# Visualizing the missing values
+import missingno as msno
+import matplotlib.pyplot as plt
+ 
+# Plotting the null matrix
+msno.matrix(data)
+ 
+# Customizing the plot
+plt.title('Null Matrix')
+plt.show()
+# Handling Outliers & Outlier treatments
+df= data.copy()
+col_list = list(df.describe().columns)
+ 
+#find the outliers using boxplot
+plt.figure(figsize=(25, 20))
+plt.suptitle("Box Plot", fontsize=18, y=0.95)
+ 
+for n, ticker in enumerate(col_list):
+ 
+    ax = plt.subplot(8, 4, n + 1)
+ 
+    plt.subplots_adjust(hspace=0.5, wspace=0.2)
+ 
+    # chart formatting
+    ax.set_title(ticker.upper())
+# Handling Outliers & Outlier treatments
+import pandas as pd
+import numpy as np
+ 
+def find_outliers_iqr(data):
+    # Calculate the first quartile (Q1) and third quartile (Q3) for each column
+    q1 = data.quantile(0.25)
+    q3 = data.quantile(0.75)
+ 
+    # Calculate the interquartile range (IQR) for each column
+    iqr = q3 - q1
+ 
+    # Calculate the lower and upper bounds for outliers for each column
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+ 
+    # Check for outliers in each column and count the number of outliers
+    outliers_count = (data < lower_bound) | (data > upper_bound)
+    num_outliers = outliers_count.sum()
+ 
+    return num_outliers
+ 
+ 
+outliers_per_column = find_outliers_iqr(data)
+print("Number of outliers per column:")
+print(outliers_per_column.sort_values(ascending = False))
+# Handling Outliers & Outlier treatments
+for ftr in col_list:
+  print(ftr,'\n')
+  q_25= np.percentile(df[ftr], 25)
+  q_75 = np.percentile(df[ftr], 75)
+  iqr = q_75 - q_25
+  print('Percentiles: 25th=%.3f, 75th=%.3f, IQR=%.3f' % (q_25, q_75, iqr))
+  # calculate the outlier cutoff
+  cut_off = iqr * 1.5
+  lower = q_25 - cut_off
+  upper = q_75 + cut_off
+  print(f"\nlower = {lower} and upper = {upper} \n ")
+  # identify outliers
+  outliers = [x for x in df[ftr] if x < lower or x > upper]
+  print('Identified outliers: %d' % len(outliers))
+  #removing outliers
+  if len(outliers)!=0:
+ 
+    def bin(row):
+      if row[ftr]> upper:
+        return upper
+      if row[ftr] < lower:
+        return lower
+      else:
+        return row[ftr]
+ 
+ 
+ 
+    data[ftr] =  df.apply (lambda row: bin(row), axis=1)
+    print(f"{ftr} Outliers Removed")
+  print("\n-------\n")
+plt.figure(figsize=(25, 20))
+plt.suptitle("Box Plot without Outliers", fontsize=18, y=0.95)
+#plot the all figures in loop with boxplot
+for n, ticker in enumerate(col_list):
+ 
+    ax = plt.subplot(8, 4, n + 1)
+ 
+    plt.subplots_adjust(hspace=0.5, wspace=0.2)
+    # chart formatting
+    ax.set_title(ticker.upper())
+#examining the shape after
+data.shape
+# Manipulate Features to minimize feature correlation and create new features
+# create new features
+# create a column average building temperature based on all temperature
+data['Average_building_Temperature']=data[['KITCHEN_TEMP','LIVING_TEMP','BEDROOM_TEMP','OFFICE_TEMP','BATHROOM_TEMP','IRONING_ROOM_TEMP','TEEN_ROOM_2_TEMP','PARENTS_ROOM_TEMP']].mean(axis=1)
+#create a column of difference between outside and inside temperature
+data['Temperature_difference']=abs(data['Average_building_Temperature']-data['OUTSIDE_TEMP_build'])
+ 
+#create a column average building humidity
+data['Average_building_humidity']=data[['KITCHEN_HUM','LIVING_HUM','BEDROOM_HUM', 'OFFICE_HUM','BATHROOM_HUM','IRONING_ROOM_HUM','TEEN_ROOM_HUM','PARENTS_ROOM_HUM']].mean(axis=1)
+#create a column of difference between outside and inside building humidity
+data['Humidity_difference']=abs(data['OUTSIDE_HUM_build']-data['Average_building_humidity'])
+ 
+ 
+# drop random variables as it does not look like that much important while predicting the output
+columns_to_drop = ['rv1','rv2']
+data.drop(columns_to_drop, axis=1, inplace=True)
+data.shape
+#examining the skewness in the dataset to check the distribution
+skewness = data.skew()
+ 
+#ginding the absolute value
+abs(skewness)
+ 
+# setting up the threshold
+skewness_threshold = 0.5
+ 
+# Separate features into symmetrical and skewed based on skewness threshold
+symmetrical_features = skewness[abs(skewness) < skewness_threshold].index
+skewed_features = skewness[abs(skewness) >= skewness_threshold].index
+ 
+# Create new DataFrames for symmetrical and skewed features
+print('FEATURES FOLLOWED SYMMETRICAL DISTRIBUTION :')
+symmetrical_data = data[symmetrical_features]
+print(symmetrical_features)
+ 
+print('FEATURES FOLLOWED SKEWED DISTRIBUTION :')
+skewed_data = data[skewed_features]
+print(skewed_features)
+#examining the skewed data
+skewed_data
+#import the liabrary
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import PowerTransformer
+ 
+# Initialize the PowerTransformer
+power_transformer = PowerTransformer()
+ 
+# Fit and transform the data using the PowerTransformer
+power_transformed = pd.DataFrame(power_transformer.fit_transform(skewed_data))
+power_transformed.columns = skewed_data.columns
+#examining the power transformed data
+power_transformed
+# Reset the index to the default integer index
+symmetrical_data.reset_index(drop=True, inplace=True)
+#examining the symmetrical data
+symmetrical_data
+# Concatenate horizontally (along columns)
+tranformed_data = pd.concat([symmetrical_data, power_transformed], axis=1)
+#examining the transformed data
+tranformed_data
+#importing the desired liabrary
+from sklearn.preprocessing import StandardScaler
+ 
+# StandardScaler
+scaler = StandardScaler()
+scaled_data = pd.DataFrame(scaler.fit_transform(tranformed_data))
+scaled_data.columns = tranformed_data.columns
+scaled_data
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+ 
+# Initialize a PCA instance without specifying the number of components
+pca = PCA()
+ 
+# Fit the PCA model to your standardized data
+pca.fit(scaled_data)
+ 
+# Calculate the cumulative explained variance
+cumulative_explained_variance = np.cumsum(pca.explained_variance_ratio_)
+ 
+# Create an elbow plot to visualize the explained variance
+plt.figure(figsize=(8, 6))
+plt.plot(range(1, len(cumulative_explained_variance) + 1), cumulative_explained_variance, marker='o', linestyle='--')
+plt.xlabel('Number of Principal Components')
+plt.ylabel('Cumulative Explained Variance')
+plt.title('PCA Elbow Plot')
+plt.grid()
+plt.show()
+ 
+ 
+# Create a PCA instance and specify the number of components you want to retain
+# For example, if you want to retain 10 components, set n_components=10
+n_components = 10
+pca = PCA(n_components=n_components)
+ 
+# Fit the PCA model to your standardized data and transform it
+transformed_data_pca = pca.fit_transform(scaled_data)
+ 
+# The variable 'transformed_data_pca' now contains your data in the reduced-dimensional space with 'n_components' principal components.
+ 
+# You can also access explained variance to see how much variance is explained by each component
+explained_variance = pca.explained_variance_ratio_
+# the variances of the pca that we extract and there importance in predicting the output
+explained_variance
+#calculating the total of  explained_variance  which needs to be more than 90%
+explained_variance.sum()
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+ 
+# Initialize a PCA instance without specifying the number of components
+pca = PCA()
+ 
+# Fit the PCA model to your standardized data
+pca.fit(scaled_data)
+ 
+# Calculate the explained variance for each component
+explained_variance = pca.explained_variance_ratio_
+ 
+# Create a scree plot
+plt.figure(figsize=(8, 6))
+plt.plot(range(1, len(explained_variance) + 1), explained_variance, marker='o', linestyle='--')
+plt.xlabel('Principal Component')
+plt.ylabel('Explained Variance')
+plt.title('Scree Plot for PCA')
+plt.grid()
+plt.show()
+#examining the shape after pca
+transformed_data_pca.shape
+transformed_data_pca
+transformed_data_pca
+#assinign the independent and dependent feature
+x = transformed_data_pca
+y = data['Appliances']
+#splitting the data into 80/20 ration
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.20, random_state=3)
+#importing the mdoel
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+ 
+#defining the object
+reg = LinearRegression()
+reg.fit(x_train, y_train)
+ 
+#training dataset score
+training_score = reg.score(x_train, y_train)
+ 
+#predicting the value
+y_pred = reg.predict(x_test)
+ 
+#calculating the training accuracy
+print("Train score:" ,training_score)
+ 
+#calculating the MSE
+MSE  = mean_squared_error((y_test),(y_pred))
+print("Test MSE :" , MSE)
+ 
+#calculating the testing accuracy
+r2 = r2_score((y_test),(y_pred))
+print("Test R2 :" ,r2)
+# Visualizing evaluation Metric Score chart
+sns.displot(y_pred - y_test,kind ='kde')
+#plot to compare the predicted values against the actual values.
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(y_pred)
+plt.legend(["Predicted","Actual"])
+plt.show()
+# ML Model - 1 Implementation with hyperparameter optimization techniques (i.e., GridSearch CV, RandomSearch CV, Bayesian Optimization etc.)
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
+ 
+# Create a Linear Regression model (you can replace this with any other regression model)
+model = LinearRegression()
+ 
+# Define hyperparameter search space (you can customize this based on your model)
+param_dist = {'fit_intercept': [True, False],
+              'copy_X': [True, False],
+              'positive':[True, False]}
+ 
+# Perform RandomizedSearchCV
+random_search = RandomizedSearchCV(estimator=model, param_distributions=param_dist,
+                                   n_iter=10, scoring='neg_mean_squared_error', cv=5, n_jobs=-1)
+ 
+# Fit the RandomizedSearchCV to find the best hyperparameters
+random_search.fit(x_train, y_train)
+ 
+# Get the best hyperparameters and model
+best_params = random_search.best_params_
+best_model = random_search.best_estimator_
+ 
+# Train the best model with the entire training dataset
+best_model.fit(x_train, y_train)
+ 
+training_score_val = best_model.score(x_train, y_train)
+# Evaluate the best model on the test set
+test_predictions = best_model.predict(x_test)
+ 
+# Calculate evaluation metrics for the test predictions (e.g., mean squared error)
+from sklearn.metrics import mean_squared_error
+mse = mean_squared_error(y_test, test_predictions)
+r2 = r2_score((y_test),(test_predictions))
+ 
+ 
+print("Best Hyperparameters:", best_params)
+ 
+ 
+#visual of training score
+print("Train score:" ,training_score_val)
+print("Test MSE:", mse)
+print("Test R2:", r2)
+ 
+sns.displot(test_predictions - y_test,kind ='kde')
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+ 
+# Assuming you have already split your data into x_train, x_test, y_train, and y_test
+ 
+# Choose the degree of the polynomial (e.g., 2 for quadratic)
+degree = 2
+ 
+# Create a Polynomial Regression model using a pipeline
+polyreg = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+ 
+# Fit the model to the training data
+polyreg.fit(x_train, y_train)
+ 
+# Predict on the test data
+y_pred = polyreg.predict(x_test)
+ 
+# Evaluate the model
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+ 
+# Calculate the R2 score for the training data
+training_r2 = polyreg.score(x_train, y_train)
+ 
+print(f"Training R-squared (R2) Score: {training_r2:.2f}")
+print(f"Mean Squared Error: {mse:.2f}")
+print(f"R-squared (R2) Score: {r2:.2f}")
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+ 
+# Assuming you have already split your data into x_train, x_test, y_train, and y_test
+ 
+# Choose the degree of the polynomial (e.g., 2 for quadratic)
+degree = 2
+ 
+# Create a Polynomial Regression model using a pipeline
+polyreg = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+ 
+# Fit the model to the training data
+polyreg.fit(x_train, y_train)
+ 
+# Predict on the test data
+y_pred = polyreg.predict(x_test)
+ 
+# Evaluate the model
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+ 
+# Calculate the R2 score for the training data
+training_r2 = polyreg.score(x_train, y_train)
+ 
+print(f"Training R-squared (R2) Score: {training_r2:.2f}")
+print(f"Mean Squared Error: {mse:.2f}")
+print(f"R-squared (R2) Score: {r2:.2f}")
+#### 2. Cross- Validation & Hyperparameter Tuning
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(y_pred)
+plt.legend(["Predicted","Actual"])
+plt.show()
+from sklearn.model_selection import cross_val_score, GridSearchCV
+ 
+# Create a Polynomial Regression model without specifying the degree
+polyreg = make_pipeline(PolynomialFeatures(), LinearRegression())
+ 
+# Define a range of polynomial degrees to be tested
+param_grid = {'polynomialfeatures__degree': range(1, 3)}
+ 
+# Initialize GridSearchCV with 5-fold cross-validation
+grid_search = GridSearchCV(polyreg, param_grid, cv=5, scoring='neg_mean_squared_error')
+ 
+# Fit the model to the training data
+grid_search.fit(x_train, y_train)
+ 
+# Get the best polynomial degree
+best_degree = grid_search.best_params_['polynomialfeatures__degree']
+ 
+# Create a Polynomial Regression model with the best degree
+best_polyreg = make_pipeline(PolynomialFeatures(degree=best_degree), LinearRegression())
+ 
+# Perform cross-validation to evaluate the model
+cv_scores = cross_val_score(best_polyreg, x_train, y_train, cv=5, scoring='neg_mean_squared_error')
+cv_r2_scores = cross_val_score(best_polyreg, x_train, y_train, cv=5, scoring='r2')
+ 
+# Calculate the mean squared error and R2 score
+mse_cv = -cv_scores.mean()
+r2_cv = cv_r2_scores.mean()
+ 
+# Fit the best model to the training data
+best_polyreg.fit(x_train, y_train)
+ 
+# Predict on the test data
+y_pred = best_polyreg.predict(x_test)
+ 
+# Evaluate the model on the test data
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+ 
+print(f"Best Polynomial Degree: {best_degree}")
+print(f"Cross-Validation Mean Squared Error: {mse_cv:.2f}")
+print(f"Cross-Validation R-squared (R2) Score: {r2_cv:.2f}")
+print(f"Mean Squared Error: {mse:.2f}")
+print(f"R-squared (R2) Score: {r2:.2f}")
+# Visualizing evaluation Metric Score chart
+sns.displot(y_pred - y_test,kind ='kde')
+#### 2. Cross- Validation & Hyperparameter Tuning
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(y_pred)
+plt.legend(["Predicted","Actual"])
+plt.show()
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import Ridge
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+ 
+# Assuming you have already created the 'x_train', 'x_test', 'y_train', and 'y_test' datasets
+# 'x_train' and 'x_test' are the results of polynomial regression on PCA-transformed data
+ 
+# Create a PolynomialFeatures instance (with degree=2 for quadratic features)
+poly_features = PolynomialFeatures(degree=2)
+ 
+# Transform the data to include polynomial features
+x_train_poly = poly_features.fit_transform(x_train)
+x_test_poly = poly_features.transform(x_test)
+ 
+# Create a Ridge regression model
+ridge_reg = Ridge(alpha=1.0)  # You can adjust the alpha parameter (regularization strength)
+ 
+# Fit the Ridge model to the training data
+ridge_reg.fit(x_train_poly, y_train)
+ 
+# Predict on the test data
+y_pred = ridge_reg.predict(x_test_poly)
+ 
+# Calculate R-squared (R2) for the test data
+test_r2 = ridge_reg.score(x_test_poly, y_test)
+ 
+# Calculate R-squared (R2) for the training data
+training_r2 = ridge_reg.score(x_train_poly, y_train)
+ 
+# Calculate Mean Squared Error (MSE) for the test data
+mse = mean_squared_error(y_test, y_pred)
+ 
+ 
+print(f"Test R-squared (R2) Score: {test_r2:.2f}")
+print(f"Training R-squared (R2) Score: {training_r2:.2f}")
+print(f"Mean Squared Error (MSE): {mse:.2f}")
+# Visualizing evaluation Metric Score chart
+sns.displot(y_pred - y_test,kind ='kde')
+#### 2. Cross- Validation & Hyperparameter Tuning
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(y_pred)
+plt.legend(["Predicted","Actual"])
+plt.show()
+from sklearn.model_selection import GridSearchCV, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import Ridge
+import numpy as np
+ 
+# Assuming you have 'x' and 'y' as your data and target variable
+ 
+# Create a PolynomialFeatures instance (with degree=3 for cubic features)
+poly_features = PolynomialFeatures(degree=2)
+ 
+# Create a Ridge regression model
+ridge_reg = Ridge()
+ 
+# Create a pipeline with the polynomial features and Ridge regression
+pipeline = Pipeline([
+    ('polynomial_features', poly_features),
+    ('ridge_regression', ridge_reg)
+])
+ 
+# Define hyperparameters and values to search
+param_grid = {
+    'ridge_regression__alpha': [0.001, 0.01, 0.1, 1]  # You can adjust the alpha values
+}
+ 
+# Perform Grid Search with Cross-Validation
+grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='neg_mean_squared_error')
+grid_search.fit(x, y)  # Use the full dataset for cross-validation
+ 
+# Get the best hyperparameters from the grid search
+best_alpha = grid_search.best_params_['ridge_regression__alpha']
+ 
+# Create a Ridge regression model with the best hyperparameters
+best_ridge_reg = Ridge(alpha=best_alpha)
+ 
+# Fit the Ridge model to the training data
+best_ridge_reg.fit(x_train, y_train)
+ 
+# Calculate cross-validated R-squared (R2) scores
+cv_scores = cross_val_score(best_ridge_reg, x_train, y_train, cv=5, scoring='r2')
+ 
+# Calculate R-squared (R2) score on the test data
+test_r2 = best_ridge_reg.score(x_test, y_test)
+ 
+print(f"Best Alpha: {best_alpha}")
+print(f"Cross-Validated R-squared (R2) Scores: {cv_scores}")
+print(f"Mean R-squared (R2) Score: {np.mean(cv_scores):.2f}")
+print(f"Training R-squared (R2) Score: {best_ridge_reg.score(x_train, y_train):.2f}")
+print(f"Test R-squared (R2) Score: {test_r2:.2f}")
+ 
+# Visualizing evaluation Metric Score chart
+sns.displot(y_pred - y_test,kind ='kde')
+#### 2. Cross- Validation & Hyperparameter Tuning
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(y_pred)
+plt.legend(["Predicted","Actual"])
+plt.show()
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import Lasso
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+ 
+# Assuming you have already created the 'x_train', 'x_test', 'y_train', and 'y_test' datasets
+# 'x_train' and 'x_test' are the results of polynomial regression on PCA-transformed data
+ 
+# Create a PolynomialFeatures instance (with degree=3 for cubic features)
+poly_features = PolynomialFeatures(degree=2)
+ 
+# Transform the data to include polynomial features
+x_train_poly = poly_features.fit_transform(x_train)
+x_test_poly = poly_features.transform(x_test)
+ 
+# Create a Lasso regression model
+lasso_reg = Lasso(alpha=1.0)  # You can adjust the alpha parameter (regularization strength)
+ 
+# Fit the Lasso model to the training data
+lasso_reg.fit(x_train_poly, y_train)
+ 
+# Predict on the test data
+y_pred = lasso_reg.predict(x_test_poly)
+ 
+# Calculate R-squared (R2) for the test data
+test_r2 = lasso_reg.score(x_test_poly, y_test)
+ 
+# Calculate R-squared (R2) for the training data
+training_r2 = lasso_reg.score(x_train_poly, y_train)
+ 
+# Calculate Mean Squared Error (MSE) for the test data
+mse = mean_squared_error(y_test, y_pred)
+ 
+print(f"Test R-squared (R2) Score: {test_r2:.2f}")
+print(f"Training R-squared (R2) Score: {training_r2:.2f}")
+print(f"Mean Squared Error (MSE): {mse:.2f}")
+# Visualizing evaluation Metric Score chart
+sns.displot(y_pred - y_test,kind ='kde')
+#### 2. Cross- Validation & Hyperparameter Tuning
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(y_pred)
+plt.legend(["Predicted","Actual"])
+plt.show()
+from sklearn.model_selection import GridSearchCV, cross_val_score, train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.linear_model import Lasso
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+ 
+# Assuming you have 'x' and 'y' as your data and target variable
+ 
+# Split the data into training and test sets
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=3)
+ 
+# Create a PolynomialFeatures instance (with degree=3 for cubic features)
+poly_features = PolynomialFeatures(degree=2)
+ 
+# Transform the data to include polynomial features
+x_train_poly = poly_features.fit_transform(x_train)
+x_test_poly = poly_features.transform(x_test)
+ 
+# Scale the features
+scaler = StandardScaler()
+x_train_poly = scaler.fit_transform(x_train_poly)
+x_test_poly = scaler.transform(x_test_poly)
+ 
+# Create a Lasso regression model
+lasso_reg = Lasso(max_iter=10000)  # Increase max_iter and adjust the alpha parameter if needed
+ 
+# Define hyperparameters and values to search
+param_grid = {
+    'alpha': [0.001, 0.01, 0.1, 1, 10]  # You can adjust the alpha values
+}
+ 
+# Perform Grid Search with Cross-Validation
+grid_search = GridSearchCV(lasso_reg, param_grid, cv=5, scoring='neg_mean_squared_error')
+grid_search.fit(x_train_poly, y_train)  # Use the training data for cross-validation
+ 
+# Get the best hyperparameters from the grid search
+best_alpha = grid_search.best_params_['alpha']
+ 
+# Create a Lasso regression model with the best hyperparameters
+best_lasso_reg = Lasso(alpha=best_alpha, max_iter=10000)
+ 
+# Fit the Lasso model to the training data
+best_lasso_reg.fit(x_train_poly, y_train)
+ 
+# Predict on the test data
+y_pred = best_lasso_reg.predict(x_test_poly)
+ 
+# Calculate R-squared (R2) for the test data
+test_r2 = best_lasso_reg.score(x_test_poly, y_test)
+ 
+# Calculate R-squared (R2) for the training data
+training_r2 = best_lasso_reg.score(x_train_poly, y_train)
+ 
+# Calculate Mean Squared Error (MSE) for the test data
+mse = mean_squared_error(y_test, y_pred)
+ 
+# Calculate Mean Squared Error (MSE) for the training data
+training_mse = mean_squared_error(y_train, best_lasso_reg.predict(x_train_poly))
+ 
+# Calculate cross-validated R-squared (R2) scores
+cv_scores = cross_val_score(best_lasso_reg, x, y, cv=5, scoring='r2')
+ 
+print(f"Best Alpha: {best_alpha}")
+print(f"Test R-squared (R2) Score: {test_r2:.2f}")
+print(f"Training R-squared (R2) Score: {training_r2:.2f}")
+print(f"Mean Squared Error (MSE): {mse:.2f}")
+print(f"Training Mean Squared Error (MSE): {training_mse:.2f}")
+print(f"Cross-Validated R-squared (R2) Scores: {cv_scores}")
+print(f"Mean R-squared (R2) Score: {np.mean(cv_scores):.2f}")
+# Visualizing evaluation Metric Score chart
+sns.displot(y_pred - y_test,kind ='kde')
+#### 2. Cross- Validation & Hyperparameter Tuning
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(y_pred)
+plt.legend(["Predicted","Actual"])
+plt.show()
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import  ElasticNet
+from sklearn.metrics import mean_squared_error, r2_score
+ 
+# Split the data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
+ 
+# Specify the degree of polynomial (you can change this based on your data)
+degree = 2
+ 
+# Create polynomial features
+poly_features = PolynomialFeatures(degree=degree)
+X_train_poly = poly_features.fit_transform(X_train)
+X_test_poly = poly_features.transform(X_test)
+ 
+# Create a Linear Regression model
+ElasticNet_model = ElasticNet(alpha=1.0)
+ 
+# Train the model using the polynomial features
+ElasticNet_model.fit(X_train_poly, y_train)
+ 
+# Make predictions on the training and test data
+train_predictions = ElasticNet_model.predict(X_train_poly)
+test_predictions = ElasticNet_model.predict(X_test_poly)
+ 
+# Evaluate the model
+train_mse = mean_squared_error(y_train, train_predictions)
+test_mse = mean_squared_error(y_test, test_predictions)
+ 
+train_r2 = r2_score(y_train, train_predictions)
+test_r2 = r2_score(y_test, test_predictions)
+ 
+print("Train MSE:", train_mse)
+print("Test MSE:", test_mse)
+print("Train R-squared:", train_r2)
+print("Test R-squared:", test_r2)
+# Visualizing evaluation Metric Score chart
+sns.displot(test_predictions - y_test,kind ='kde')#### 2. Cross- Validation & Hyperparameter Tuning
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(test_predictions)
+plt.legend(["Predicted","Actual"])
+plt.show()
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import ElasticNet
+from sklearn.metrics import mean_squared_error, r2_score
+ 
+# Create a Ridge Regression model
+ElasticNet_model = ElasticNet()
+ 
+# Perform Cross-Validation and Hyperparameter Tuning
+param_grid = {'alpha': [0.1, 1.0, 10.0]}  # Define the hyperparameter grid
+ 
+# Create the GridSearchCV object
+grid_search = GridSearchCV(estimator=ElasticNet_model, param_grid=param_grid,
+                           scoring='neg_mean_squared_error', cv=5)
+ 
+# Fit the GridSearchCV to find the best degree and alpha
+grid_search.fit(X_train_poly, y_train)
+ 
+# Get the best degree and alpha from the GridSearchCV results
+best_alpha = grid_search.best_params_['alpha']
+best_model = grid_search.best_estimator_
+ 
+# Make predictions on the training and test data
+train_predictions = best_model.predict(X_train_poly)
+test_predictions = best_model.predict(X_test_poly)
+ 
+# Evaluate the model
+train_mse = mean_squared_error(y_train, train_predictions)
+test_mse = mean_squared_error(y_test, test_predictions)
+ 
+train_r2 = r2_score(y_train, train_predictions)
+test_r2 = r2_score(y_test, test_predictions)
+ 
+print("Best Alpha:", best_alpha)
+print("Train MSE:", train_mse)
+print("Test MSE:", test_mse)
+print("Train R-squared:", train_r2)
+print("Test R-squared:", test_r2)
+import xgboost as xgb
+ 
+# Create an XGBoost Regressor model
+xgb_model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42)
+ 
+# Train the model
+xgb_model.fit(X_train_poly, y_train)
+ 
+# Make predictions on the training and test data
+train_predictions_xgb = xgb_model.predict(X_train_poly)
+test_predictions_xgb = xgb_model.predict(X_test_poly)
+ 
+# Evaluate the model
+train_mse_xgb = mean_squared_error(y_train, train_predictions_xgb)
+test_mse_xgb = mean_squared_error(y_test, test_predictions_xgb)
+ 
+train_r2_xgb = r2_score(y_train, train_predictions_xgb)
+test_r2_xgb = r2_score(y_test, test_predictions_xgb)
+ 
+print("XGBoost Regressor:")
+print("Train MSE:", train_mse_xgb)
+print("Test MSE:", test_mse_xgb)
+print("Train R-squared:", train_r2_xgb)
+print("Test R-squared:", test_r2_xgb)
+#### 2.
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(test_predictions_xgb)
+plt.legend(["Predicted","Actual"])
+plt.show()
+#### 2.
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(test_predictions_xgb)
+plt.legend(["Predicted","Actual"])
+plt.show()
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(test_predictions_xgb)
+plt.legend(["Predicted","Actual"])
+plt.show()
+from sklearn.svm import SVR
+from sklearn.metrics import mean_squared_error, r2_score
+import numpy as np
+ 
+# Assuming you have already split your data into x_train, x_test, y_train, and y_test
+# Split the data into training and test sets
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=3)
+ 
+# Create an SVR model
+svr = SVR(kernel='rbf')  # You can choose the kernel (e.g., 'linear', 'rbf', 'poly')
+ 
+# Fit the SVR model to the training data
+svr.fit(x_train, y_train)
+ 
+# Predict on the test data
+y_pred = svr.predict(x_test)
+ 
+# Evaluate the model
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+ 
+# Calculate the R2 score for the training data
+training_r2 = svr.score(x_train, y_train)
+ 
+print(f"Training R-squared (R2) Score: {training_r2:.2f}")
+print(f"Mean Squared Error: {mse:.2f}")
+print(f"R-squared (R2) Score: {r2:.2f}")
+# Visualizing evaluation Metric Score chart
+sns.displot(test_predictions_xgb - y_test,kind ='kde')
+#### 2. Cross- Validation & Hyperparameter Tuning
+plt.figure(figsize=(8,5))
+plt.plot(np.array(y_test))
+plt.plot(y_pred)
+plt.legend(["Predicted","Actual"])
+plt.show()
+import matplotlib.pyplot as plt
+ 
+# Define the model names (you can adjust these as needed)
+model_names = ["simple LR ", "CV simple LR", "Polynomial LR", "CVpolynomial LR", "Ridge LR", "CVRidge LR","Lasoo","CVLasoo"," Elastic Net", "CV elastic net",
+               "Rndm Forrest","CVRndm Forest","Grdient Boost", "XG Boost", " CVXG BOOST ", "SVR"]
+ 
+# Define the training and testing accuracy values for each
+training_accuracy =[0.67, 0.67, 0.78, 0.78, 0.68, 0.78, 0.76, 0.78, 0.69, 0.77, 0.99, 0.91, 0.82, 0.96, 0.98 , 0.67]
+testing_accuracy = [0.68, 0.68, 0.78, 0.78, 0.68, 0.78, 0.75, 0.65, 0.68, 0.78, 0.92, 0.92, 0.79, 0.91, 0.93 ,0.67]
+ 
+# Set the width of the bars and their positions
+width = 0.35
+x = range(len(model_names))
+ 
+# Create the bar plot
+plt.figure(figsize=(15, 6))
+plt.bar(x, training_accuracy, width, label='Training Accuracy')
+plt.bar([i + width for i in x], testing_accuracy, width, label='Testing Accuracy')
+ 
+# Set labels and title
+plt.xlabel('Models')
+plt.ylabel('Accuracy')
+plt.title('Training and Testing Accuracy of Different Models')
+plt.xticks([i + width / 2 for i in x], model_names)
+plt.legend()
+ 
+# Display the plot
+plt.tight_layout()
+plt.show()
